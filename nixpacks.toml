@@ -1,11 +1,14 @@
 [packages]
 apt = [
   "build-essential",
+  "pkg-config",
   "libcairo2-dev",
   "libpango1.0-dev",
   "libjpeg-dev",
   "libgif-dev",
   "librsvg2-dev",
-  "pkg-config",
-  "python3"
+  "libpixman-1-dev",
+  "python3-dev",
+  "make",
+  "g++"
 ]
