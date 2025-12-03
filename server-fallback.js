@@ -4,32 +4,6 @@ import path from "path";
 import rateLimit from "express-rate-limit";
 
 // ==============================
-// SAFE DYNAMIC IMPORT
-// ==============================
-let QRISGenerator, PaymentChecker, ReceiptGenerator;
-
-async function loadModules() {
-    try {
-        const mod = await import("autoft-qris");
-
-        QRISGenerator = mod.QRISGenerator;
-        PaymentChecker = mod.PaymentChecker;
-        ReceiptGenerator = mod.ReceiptGenerator;
-    } catch (err) {
-        console.error("\n[ERROR] Gagal memuat modul `autoft-qris`.");
-        console.error("Package ini membutuhkan native library seperti Cairo, pixman, dll.");
-        console.error("Install dependensi dengan:");
-        console.error(
-            "sudo apt-get update && sudo apt-get install -y build-essential pkg-config libcairo2-dev libpango1.0-dev libjpeg-dev libgif-dev librsvg2-dev libpixman-1-dev python3-dev make g++"
-        );
-        console.error("\nOriginal error:", err?.stack || err);
-        process.exit(1);
-    }
-}
-
-await loadModules();
-
-// ==============================
 // APP INIT
 // ==============================
 const app = express();
@@ -41,19 +15,12 @@ const __root = process.cwd();
 const API_KEY = process.env.API_KEY;
 
 const config = {
-    storeName: process.env.STORE_NAME,
-    auth_username: process.env.AUTH_USERNAME,
-    auth_token: process.env.AUTH_TOKEN,
-    baseQrString: process.env.BASE_QR_STRING,
-    logoPath: process.env.LOGO_PATH,
+    storeName: process.env.STORE_NAME || "Zetta Store",
+    auth_username: process.env.AUTH_USERNAME || "OK2498473",
+    auth_token: process.env.AUTH_TOKEN || "672812417500789002498473OKCTAC7D08D4BFAB1208E12725D9DA0BAC2F",
+    baseQrString: process.env.BASE_QR_STRING || "00020101021126670016COM.NOBUBANK.WWW01189360050300000879140214221056314059230303UMI51440014ID.CO.QRIS.WWW0215ID20254118470930303UMI5204541153033605802ID5921ZETTA STORE OK24984736005BATAM61052940062070703A016304CDB0",
+    logoPath: process.env.LOGO_PATH || "./logo-agin.png",
 };
-
-const qrisGen = new QRISGenerator(config, "theme1");
-const paymentChecker = new PaymentChecker({
-    auth_token: config.auth_token,
-    auth_username: config.auth_username,
-});
-const receiptGen = new ReceiptGenerator(config);
 
 // ==============================
 // PREPARE FOLDERS
@@ -171,6 +138,14 @@ app.get("/", (req, res) => {
             font-size: 1.8em;
             font-weight: bold;
         }
+        .warning {
+            background: #fff3cd;
+            border: 1px solid #ffc107;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
         .endpoints {
             margin-top: 40px;
         }
@@ -208,14 +183,6 @@ app.get("/", (req, res) => {
             font-size: 0.9em;
             margin-top: 8px;
         }
-        .footer {
-            margin-top: 30px;
-            padding-top: 20px;
-            border-top: 1px solid #e9ecef;
-            text-align: center;
-            color: #999;
-            font-size: 0.9em;
-        }
         .badge {
             display: inline-block;
             background: #28a745;
@@ -226,13 +193,24 @@ app.get("/", (req, res) => {
             font-weight: bold;
             margin-left: 10px;
         }
+        .badge.disabled {
+            background: #dc3545;
+        }
+        .footer {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            text-align: center;
+            color: #999;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>SValePay API 💳</h1>
-            <p>Payment Gateway QRIS</p>
+            <p>Payment Gateway QRIS (Fallback Mode)</p>
         </div>
         
         <div class="status">
@@ -252,6 +230,13 @@ app.get("/", (req, res) => {
             </div>
         </div>
         
+        <div class="warning">
+            <strong>⚠️ Fallback Mode:</strong> Native QRIS module tidak tersedia. 
+            Untuk mengaktifkan fitur QRIS, jalankan:
+            <br><code>npm install --build-from-source</code>
+            <br>Endpoint dasar API tetap berfungsi.
+        </div>
+        
         <div class="endpoints">
             <h2>Available Endpoints</h2>
             
@@ -265,24 +250,22 @@ app.get("/", (req, res) => {
             <div class="endpoint">
                 <span class="method">GET</span>
                 <span class="path">/api/payment/create</span>
-                <span class="badge">Create QR</span>
-                <div class="desc">Generate QRIS QR code untuk pembayaran</div>
-                <div class="desc" style="margin-top: 8px;"><strong>Params:</strong> key, refId, amount</div>
+                <span class="badge disabled">Disabled</span>
+                <div class="desc">Generate QRIS QR code - <strong>Memerlukan native module</strong></div>
             </div>
             
             <div class="endpoint">
                 <span class="method">GET</span>
                 <span class="path">/api/check</span>
-                <span class="badge">Check Status</span>
-                <div class="desc">Cek status pembayaran</div>
-                <div class="desc" style="margin-top: 8px;"><strong>Params:</strong> reference, amount</div>
+                <span class="badge disabled">Disabled</span>
+                <div class="desc">Cek status pembayaran - <strong>Memerlukan native module</strong></div>
             </div>
             
             <div class="endpoint">
                 <span class="method">GET</span>
                 <span class="path">/file?q=path</span>
-                <span class="badge">Serve File</span>
-                <div class="desc">Ambil file QR image yang sudah di-generate</div>
+                <span class="badge">Available</span>
+                <div class="desc">Ambil file dari sistem</div>
             </div>
         </div>
         
@@ -302,72 +285,20 @@ app.get("/", (req, res) => {
 // ROUTES
 // ==============================
 
-// CREATE PAYMENT
-app.get("/api/payment/create", limiter, async (req, res) => {
-    try {
-        const { key, refId, amount } = req.query;
-
-        if (key !== API_KEY)
-            return res.status(403).json({ success: false, error: "Invalid API Key" });
-
-        if (!refId)
-            return res.status(400).json({ success: false, error: "refId required" });
-
-        if (!amount)
-            return res.status(400).json({ success: false, error: "amount required" });
-
-        const amt = Number(amount);
-        if (isNaN(amt) || amt < 1)
-            return res.status(400).json({ success: false, error: "Invalid amount" });
-
-        const qrString = qrisGen.generateQrString(amt);
-        const qrBuffer = await qrisGen.generateQRWithLogo(qrString);
-
-        const filePath = path.join(qrDir, `qris-${refId}.png`);
-        fs.writeFileSync(filePath, qrBuffer);
-
-        // auto delete 2 menit
-        setTimeout(() => {
-            if (fs.existsSync(filePath)) {
-                fs.unlinkSync(filePath);
-                console.log(`[AUTO DELETE] Removed -> ${filePath}`);
-            }
-        }, 120000);
-
-        return res.json({
-            success: true,
-            reference: refId,
-            amount: amt,
-            qr_image_url: `/file?q=${encodeURIComponent(filePath)}`,
-        });
-    } catch (err) {
-        console.error("[ERROR CREATE PAYMENT]", err);
-        return res.status(500).json({ success: false, error: err.message });
-    }
+// CREATE PAYMENT - DISABLED
+app.get("/api/payment/create", limiter, (req, res) => {
+    res.status(503).json({
+        success: false,
+        error: "QRIS module not available. Run: npm install --build-from-source"
+    });
 });
 
-// CHECK PAYMENT
-app.get("/api/check", limiter, async (req, res) => {
-    try {
-        const { reference, amount } = req.query;
-
-        if (!reference)
-            return res.status(400).json({ success: false, error: "reference required" });
-
-        if (!amount)
-            return res.status(400).json({ success: false, error: "amount required" });
-
-        const amt = Number(amount);
-        if (isNaN(amt))
-            return res.status(400).json({ success: false, error: "Invalid amount" });
-
-        const result = await paymentChecker.checkPaymentStatus(reference, amt);
-
-        return res.json(result);
-    } catch (err) {
-        console.error("[ERROR CHECK PAYMENT]", err);
-        return res.status(500).json({ success: false, error: err.message });
-    }
+// CHECK PAYMENT - DISABLED
+app.get("/api/check", limiter, (req, res) => {
+    res.status(503).json({
+        success: false,
+        error: "QRIS module not available. Run: npm install --build-from-source"
+    });
 });
 
 // SERVE FILE
@@ -387,5 +318,7 @@ app.get("/file", (req, res) => {
 // ==============================
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-    console.log(`SValePay API running on port ${PORT}`);
+    console.log(`\n✅ SValePay API running on port ${PORT}`);
+    console.log(`📊 Dashboard: http://localhost:${PORT}`);
+    console.log(`⚠️  Running in FALLBACK MODE (QRIS features disabled)\n`);
 });
